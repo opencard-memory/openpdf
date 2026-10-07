@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "priority": [
+    "user_added",
+    "system",
+    "bundled_google"
+  ],
+  "mappings": [
+    {
+      "source": [
+        "Helvetica",
+        "Helvetica Neue"
+      ],
+      "fallback": [
+        "Arimo",
+        "Inter"
+      ],
+      "reason": "metric-compatible first, modern UI second"
+    },
+    {
+      "source": [
+        "Myriad Pro"
+      ],
+      "fallback": [
+        "Source Sans 3",
+        "Inter"
+      ]
+    },
+    {
+      "source": [
+        "Futura",
+        "Futura PT"
+      ],
+      "fallback": [
+        "Poppins",
+        "Montserrat"
+      ]
+    },
+    {
+      "source": [
+        "Proxima Nova"
+      ],
+      "fallback": [
+        "Montserrat"
+      ]
+    },
+    {
+      "source": [
+        "Adobe Clean"
+      ],
+      "fallback": [
+        "Inter",
+        "Roboto"
+      ]
+    },
+    {
+      "source": [
+        "Minion Pro"
+      ],
+      "fallback": [
+        "EB Garamond",
+        "Lora"
+      ]
+    },
+    {
+      "source": [
+        "Trajan",
+        "Trajan Pro"
+      ],
+      "fallback": [
+        "Cinzel",
+        "Marcellus"
+      ]
+    },
+    {
+      "source": [
+        "Bickham Script Pro"
+      ],
+      "fallback": [
+        "Pinyon Script",
+        "Great Vibes"
+      ]
+    },
+    {
+      "source": [
+        "Rix고딕",
+        "Rix Gothic"
+      ],
+      "fallback": [
+        "Noto Sans KR"
+      ]
+    },
+    {
+      "source": [
+        "Rix명조",
+        "Rix Myeongjo"
+      ],
+      "fallback": [
+        "Noto Serif KR"
+      ]
+    },
+    {
+      "source": [
+        "Kozuka Gothic"
+      ],
+      "fallback": [
+        "Noto Sans JP"
+      ]
+    },
+    {
+      "source": [
+        "Kozuka Mincho"
+      ],
+      "fallback": [
+        "Noto Serif JP"
+      ]
+    },
+    {
+      "source": [
+        "Adobe Fan Heiti"
+      ],
+      "fallback": [
+        "Noto Sans SC",
+        "Noto Sans TC"
+      ]
+    }
+  ],
+  "generic": {
+    "latin_sans": [
+      "Arimo",
+      "Inter"
+    ],
+    "latin_serif": [
+      "Noto Serif",
+      "Lora"
+    ],
+    "cyrillic": [
+      "Noto Sans"
+    ],
+    "greek": [
+      "Noto Sans"
+    ],
+    "arabic": [
+      "Noto Sans Arabic"
+    ],
+    "hebrew": [
+      "Noto Sans Hebrew"
+    ],
+    "devanagari": [
+      "Noto Sans Devanagari"
+    ],
+    "thai": [
+      "Noto Sans Thai"
+    ],
+    "ethiopic": [
+      "Noto Sans Ethiopic"
+    ],
+    "hangul": [
+      "Noto Sans KR",
+      "Noto Serif KR"
+    ],
+    "japanese": [
+      "Noto Sans JP",
+      "Noto Serif JP"
+    ],
+    "simplified_chinese": [
+      "Noto Sans SC",
+      "Noto Serif SC"
+    ],
+    "traditional_chinese": [
+      "Noto Sans TC",
+      "Noto Serif TC"
+    ]
+  }
+}

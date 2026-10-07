@@ -1,0 +1,4 @@
+This source archive is provided as an original MVP scaffold.
+Qt and Qt PDF are not included in this archive. You must obtain and use them under terms applicable to your distribution model.
+OpenOffice is not used as the product name because it is associated with Apache OpenOffice trademarks.
+This notice is not legal advice. Review all third-party licenses before public distribution.

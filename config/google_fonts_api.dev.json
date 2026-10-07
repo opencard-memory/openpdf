@@ -1,0 +1,10 @@
+{
+  "environment": "development",
+  "provider": "Google Fonts Developer API",
+  "apiKey": "AIzaSyDFwSwJTG0BGcc80x3AG_NxzVLTtpXM3iQ",
+  "endpoint": "https://www.googleapis.com/webfonts/v1/webfonts",
+  "metadataCache": "fonts/catalog/webfonts.json",
+  "offlineRequired": true,
+  "downloadPolicy": "installer-or-font-manager-only",
+  "warning": "Development key embedded by explicit request. Rotate/remove before public release."
+}

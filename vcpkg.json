@@ -1,0 +1,14 @@
+{
+  "name": "openpdfoffice",
+  "version-string": "0.2.0",
+  "dependencies": [
+    "qpdf",
+    "podofo",
+    "openssl",
+    "tesseract",
+    "leptonica",
+    "zlib",
+    "libpng",
+    "libjpeg-turbo"
+  ]
+}

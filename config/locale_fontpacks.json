@@ -1,0 +1,11 @@
+{
+  "default": [
+    "all"
+  ],
+  "behavior": "UI locale is independent from font coverage. All bundled language packs are scanned and available in every UI language.",
+  "fallbackOrder": [
+    "user_added",
+    "system",
+    "bundled_google_all_languages"
+  ]
+}

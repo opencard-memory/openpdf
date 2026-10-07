@@ -1,0 +1,33 @@
+[
+  {
+    "code": "en",
+    "name": "English",
+    "aliases": [
+      "en",
+      "en-US",
+      "en-GB"
+    ],
+    "fallback": "en"
+  },
+  {
+    "code": "ko",
+    "name": "한국어",
+    "aliases": [
+      "ko",
+      "ko-KR"
+    ],
+    "fallback": "en"
+  },
+  {
+    "code": "es",
+    "name": "Español",
+    "aliases": [
+      "es",
+      "es-ES",
+      "es-419",
+      "es-MX",
+      "es-AR"
+    ],
+    "fallback": "en"
+  }
+]

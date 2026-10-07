@@ -1,0 +1,6 @@
+{
+  "apiKey": "SET_AT_BUILD_OR_FIRST_RUN",
+  "metadataCache": "fonts/catalog/webfonts.json",
+  "offlineRequired": true,
+  "downloadPolicy": "installer-or-font-manager-only"
+}
