@@ -1,29 +1,117 @@
-name: Build C++ EXE
+name: Build OpenPDF Office
 
-on: [push, workflow_dispatch]
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
+    timeout-minutes: 180
+
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-windows
+      VCPKG_FEATURE_FLAGS: manifests,binarycaching
+
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-    - name: Clean previous CMake cache
-      run: |
-        if (Test-Path build) { Remove-Item -Recurse -Force build }
-        if (Test-Path out) { Remove-Item -Recurse -Force out }
+      - name: Enable long Windows paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
 
-    - name: Run Build Batch
-      run: |
-        .\build_release.bat
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
-    - name: Upload EXE Artifact
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: OpenPDFOffice-Release
-        path: |
-          out/
-          build/
-          bin/
-          *.exe
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.3"
+          arch: "win64_msvc2022_64"
+          modules: "qtpdf"
+          cache: true
+          cache-key-prefix: "qt-6.8.3-msvc2022"
+
+      - name: Show build environment
+        shell: pwsh
+        run: |
+          Write-Host "Workspace: $env:GITHUB_WORKSPACE"
+          Write-Host "Qt directory: $env:Qt6_DIR"
+
+          where.exe cmake
+          where.exe cl
+          where.exe windeployqt
+
+          cmake --version
+          cl 2>&1 | Select-Object -First 5
+
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\vcpkg\vcpkg.exe")) {
+            Set-Location C:\vcpkg
+            .\bootstrap-vcpkg.bat
+          }
+
+      - name: Restore vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\vcpkg\installed
+            C:\vcpkg\packages
+            C:\vcpkg\downloads
+            build\vcpkg_installed
+          key: vcpkg-windows-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-windows-
+
+      - name: Install vcpkg dependencies
+        shell: pwsh
+        run: |
+          C:\vcpkg\vcpkg.exe install `
+            --triplet x64-windows `
+            --x-manifest-root="$env:GITHUB_WORKSPACE"
+
+      - name: Configure project
+        shell: pwsh
+        run: |
+          if (Test-Path build) {
+            Remove-Item build -Recurse -Force
+          }
+
+          cmake `
+            -S . `
+            -B build `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DQt6_DIR="$env:Qt6_DIR"
+
+      - name: Build Release
+        shell: pwsh
+        run: |
+          cmake `
+            --build build `
+            --config Release `
+            --parallel
+
+      - name: Locate executable
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem `
+            -Path build `
+            -Filter OpenPDFOffice.exe `
+            -Recurse |
+            Select-Object -First 1
+
+          if (-not
