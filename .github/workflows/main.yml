@@ -8,15 +8,22 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Clean previous CMake cache
+      run: |
+        if (Test-Path build) { Remove-Item -Recurse -Force build }
+        if (Test-Path out) { Remove-Item -Recurse -Force out }
+
     - name: Run Build Batch
       run: |
         .\build_release.bat
 
     - name: Upload EXE Artifact
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: OpenPDFOffice-Release
         path: |
-          out/build/x64-Release/
+          out/
           build/
           bin/
+          *.exe
