@@ -1,0 +1,374 @@
+name: Build OpenPDF Office
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 180
+
+    env:
+      VCPKG_ROOT: C:\vcpkg
+      VCPKG_DEFAULT_TRIPLET: x64-windows
+      VCPKG_FEATURE_FLAGS: manifests,binarycaching
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Enable long Windows paths
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.3"
+          arch: "win64_msvc2022_64"
+          modules: "qtpdf"
+          cache: true
+          cache-key-prefix: "qt-6.8.3-msvc2022"
+
+      - name: Show build environment
+        shell: pwsh
+        run: |
+          Write-Host "Workspace: $env:GITHUB_WORKSPACE"
+          Write-Host "Qt directory: $env:Qt6_DIR"
+          Write-Host "vcpkg root: $env:VCPKG_ROOT"
+
+          where.exe cmake
+          where.exe cl
+          where.exe windeployqt
+
+          cmake --version
+          cl 2>&1 | Select-Object -First 5
+
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\vcpkg\vcpkg.exe")) {
+            Set-Location "C:\vcpkg"
+            .\bootstrap-vcpkg.bat
+          }
+
+          if (-not (Test-Path "C:\vcpkg\vcpkg.exe")) {
+            throw "vcpkg.exe was not found."
+          }
+
+      - name: Restore vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\vcpkg\installed
+            C:\vcpkg\packages
+            C:\vcpkg\downloads
+          key: vcpkg-windows-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-windows-
+
+      - name: Install vcpkg dependencies
+        shell: pwsh
+        run: |
+          C:\vcpkg\vcpkg.exe install `
+            --triplet x64-windows `
+            --x-manifest-root="$env:GITHUB_WORKSPACE"
+
+      - name: Configure project
+        shell: pwsh
+        run: |
+          if (Test-Path "$env:GITHUB_WORKSPACE\build") {
+            Remove-Item `
+              -Path "$env:GITHUB_WORKSPACE\build" `
+              -Recurse `
+              -Force
+          }
+
+          cmake `
+            -S "$env:GITHUB_WORKSPACE" `
+            -B "$env:GITHUB_WORKSPACE\build" `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DQt6_DIR="$env:Qt6_DIR"
+
+      - name: Build Release
+        shell: pwsh
+        run: |
+          cmake `
+            --build "$env:GITHUB_WORKSPACE\build" `
+            --config Release `
+            --parallel
+
+      - name: Prepare deployment folder
+        shell: pwsh
+        run: |
+          $sourceExe = Join-Path `
+            $env:GITHUB_WORKSPACE `
+            "build\Release\OpenPDFOffice.exe"
+
+          $distDirectory = Join-Path `
+            $env:GITHUB_WORKSPACE `
+            "dist"
+
+          $destinationExe = Join-Path `
+            $distDirectory `
+            "OpenPDFOffice.exe"
+
+          Write-Host "Expected executable:"
+          Write-Host $sourceExe
+
+          if (-not (Test-Path $sourceExe)) {
+            Write-Host "Files created inside the build directory:"
+
+            Get-ChildItem `
+              -Path "$env:GITHUB_WORKSPACE\build" `
+              -Recurse |
+              Select-Object FullName, Length
+
+            throw "OpenPDFOffice.exe was not found."
+          }
+
+          if (Test-Path $distDirectory) {
+            Remove-Item `
+              -Path $distDirectory `
+              -Recurse `
+              -Force
+          }
+
+          New-Item `
+            -ItemType Directory `
+            -Path $distDirectory `
+            -Force
+
+          Copy-Item `
+            -Path $sourceExe `
+            -Destination $destinationExe `
+            -Force
+
+          if (-not (Test-Path $destinationExe)) {
+            throw "OpenPDFOffice.exe could not be copied to dist."
+          }
+
+          Write-Host "Executable copied successfully:"
+          Write-Host $destinationExe
+
+      - name: Deploy Qt runtime
+        shell: pwsh
+        run: |
+          $distDirectory = Join-Path `
+            $env:GITHUB_WORKSPACE `
+            "dist"
+
+          $distExe = Join-Path `
+            $distDirectory `
+            "OpenPDFOffice.exe"
+
+          windeployqt `
+            --release `
+            --compiler-runtime `
+            --dir $distDirectory `
+            $distExe
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "windeployqt failed."
+          }
+
+      - name: Copy application resources
+        shell: pwsh
+        run: |
+          $distDirectory = Join-Path `
+            $env:GITHUB_WORKSPACE `
+            "dist"
+
+          $resourceFolders = @(
+            "config",
+            "i18n",
+            "licenses",
+            "fontpacks"
+          )
+
+          foreach ($folder in $resourceFolders) {
+            $sourcePath = Join-Path `
+              $env:GITHUB_WORKSPACE `
+              $folder
+
+            $destinationPath = Join-Path `
+              $distDirectory `
+              $folder
+
+            if (Test-Path $sourcePath) {
+              Write-Host "Copying resource folder: $folder"
+
+              Copy-Item `
+                -Path $sourcePath `
+                -Destination $destinationPath `
+                -Recurse `
+                -Force
+            }
+            else {
+              Write-Warning "Resource folder not found: $sourcePath"
+            }
+          }
+
+      - name: Copy vcpkg runtime DLLs
+        shell: pwsh
+        run: |
+          $runtimeDirectory = "C:\vcpkg\installed\x64-windows\bin"
+          $distDirectory = "$env:GITHUB_WORKSPACE\dist"
+
+          if (Test-Path $runtimeDirectory) {
+            $runtimeDlls = Get-ChildItem `
+              -Path $runtimeDirectory `
+              -Filter "*.dll" `
+              -File
+
+            foreach ($dll in $runtimeDlls) {
+              Copy-Item `
+                -Path $dll.FullName `
+                -Destination $distDirectory `
+                -Force
+            }
+
+            Write-Host "Copied $($runtimeDlls.Count) vcpkg runtime DLL files."
+          }
+          else {
+            Write-Warning "vcpkg runtime directory not found: $runtimeDirectory"
+          }
+
+      - name: Copy QPDF executable
+        shell: pwsh
+        run: |
+          $qpdfCandidates = @(
+            "C:\vcpkg\installed\x64-windows\tools\qpdf\qpdf.exe",
+            "C:\vcpkg\installed\x64-windows\bin\qpdf.exe"
+          )
+
+          $qpdfCopied = $false
+
+          foreach ($candidate in $qpdfCandidates) {
+            if (Test-Path $candidate) {
+              Copy-Item `
+                -Path $candidate `
+                -Destination "$env:GITHUB_WORKSPACE\dist\qpdf.exe" `
+                -Force
+
+              Write-Host "qpdf.exe copied from:"
+              Write-Host $candidate
+
+              $qpdfCopied = $true
+              break
+            }
+          }
+
+          if (-not $qpdfCopied) {
+            Write-Warning "qpdf.exe was not found. Page manipulation and encryption may be unavailable."
+          }
+
+      - name: Copy Tesseract executable and language data
+        shell: pwsh
+        run: |
+          $distDirectory = "$env:GITHUB_WORKSPACE\dist"
+          $tesseractDirectory = "C:\vcpkg\installed\x64-windows\tools\tesseract"
+          $tesseractExe = Join-Path `
+            $tesseractDirectory `
+            "tesseract.exe"
+
+          if (Test-Path $tesseractExe) {
+            Copy-Item `
+              -Path $tesseractExe `
+              -Destination "$distDirectory\tesseract.exe" `
+              -Force
+
+            Write-Host "tesseract.exe copied."
+          }
+          else {
+            Write-Warning "tesseract.exe was not found."
+          }
+
+          $tessdataCandidates = @(
+            "C:\vcpkg\installed\x64-windows\share\tesseract\tessdata",
+            "C:\vcpkg\installed\x64-windows\tools\tesseract\tessdata"
+          )
+
+          foreach ($candidate in $tessdataCandidates) {
+            if (Test-Path $candidate) {
+              Copy-Item `
+                -Path $candidate `
+                -Destination "$distDirectory\tessdata" `
+                -Recurse `
+                -Force
+
+              Write-Host "Tesseract language data copied from:"
+              Write-Host $candidate
+
+              break
+            }
+          }
+
+      - name: Verify deployment
+        shell: pwsh
+        run: |
+          $distDirectory = "$env:GITHUB_WORKSPACE\dist"
+          $distExe = "$distDirectory\OpenPDFOffice.exe"
+
+          if (-not (Test-Path $distExe)) {
+            throw "Deployment executable is missing."
+          }
+
+          Write-Host "Deployment package contents:"
+
+          Get-ChildItem `
+            -Path $distDirectory `
+            -Recurse |
+            Select-Object FullName, Length
+
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          $zipPath = Join-Path `
+            $env:GITHUB_WORKSPACE `
+            "OpenPDFOffice-Windows-x64.zip"
+
+          if (Test-Path $zipPath) {
+            Remove-Item `
+              -Path $zipPath `
+              -Force
+          }
+
+          Compress-Archive `
+            -Path "$env:GITHUB_WORKSPACE\dist\*" `
+            -DestinationPath $zipPath `
+            -CompressionLevel Optimal `
+            -Force
+
+          if (-not (Test-Path $zipPath)) {
+            throw "Portable ZIP was not created."
+          }
+
+          $zipInformation = Get-Item $zipPath
+
+          Write-Host "Portable ZIP created:"
+          Write-Host $zipInformation.FullName
+          Write-Host "ZIP size: $($zipInformation.Length) bytes"
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenPDFOffice-Windows-x64
+          path: OpenPDFOffice-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
